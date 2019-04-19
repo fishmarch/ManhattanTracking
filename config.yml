@@ -19,7 +19,8 @@ pcd_path: /home/fishmarch/myProject/ManhattanTracking/data/tum_fine_cloud_unorde
 #---------------------------------------------------------------------------------------------------------
 #normal_estimation: path of output normal
 #---------------------------------------------------------------------------------------------------------
-gaussian_path: /home/fishmarch/myProject/ManhattanTracking/data/tum_fine_normal_order.pcd
+gaussian_path: /home/fishmarch/myData/TUM/rgbd_dataset_freiburg3_cabinet/normalCloud/rgb/1341841278.pcd
+gaussian_path2: /home/fishmarch/myData/TUM/rgbd_dataset_freiburg3_cabinet/normalCloud/rgb/1341841279.pcd
 
 #---------------------------------------------------------------------------------------------------------
 #normal_estimation: whether save output normal cloud

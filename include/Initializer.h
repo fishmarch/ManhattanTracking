@@ -28,8 +28,6 @@ namespace MANHATTAN_TRACKING{
     typedef pcl::PointCloud<PointT> PointCloud;
 
     class Initializer{
-
-    
 public:
     Initializer(PointCloud::Ptr InitializationPointCloud, int tim, float window, bool UseGaussianCore);
     bool Initialize();

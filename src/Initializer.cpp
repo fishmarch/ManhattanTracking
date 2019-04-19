@@ -20,9 +20,9 @@ namespace MANHATTAN_TRACKING{
             float x_mean = random(e);
             float y_mean = random(e);
             if(mUseGaussianCore)
-                MeanShift(x_mean, y_mean, DisUniformCore);
-            else
                 MeanShift(x_mean, y_mean, DisGaussianCore);
+            else
+                MeanShift(x_mean, y_mean, DisUniformCore);
 
             PointT p;
             p.x = x_mean;
