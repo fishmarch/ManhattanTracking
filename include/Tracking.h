@@ -11,6 +11,7 @@
 #include <Eigen/Dense>
 #include <pcl/io/io.h>
 #include <pcl/io/pcd_io.h>
+#include <pcl/visualization/cloud_viewer.h>
 
 using namespace std;
 
@@ -20,7 +21,8 @@ namespace MANHATTAN_TRACKING{
 
     class Tracking{
     public:
-        Tracking(PointCloud::Ptr TrackingPointCLoud,Eigen::Matrix3f LastR, float Window, bool UseGaussianCore);
+        Tracking(PointCloud::Ptr TrackingPointCLoud,Eigen::Matrix3f LastR, float Window, bool UseGaussianCore,
+                pcl::visualization::PCLVisualizer& viewer, int& port);
         bool Track();
         Eigen::Matrix3f R12() { return mR; }
     private:
@@ -36,6 +38,10 @@ namespace MANHATTAN_TRACKING{
 
         //pointcloud of meanshift results
         PointCloud::Ptr mMeanShiftPoints;
+
+        //for pcl_viewer
+        pcl::visualization::PCLVisualizer mViewer;
+        int mPort;
 
         const float mWindow;
         const bool mUseGaussianCore;

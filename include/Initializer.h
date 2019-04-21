@@ -29,7 +29,8 @@ namespace MANHATTAN_TRACKING{
 
     class Initializer{
 public:
-    Initializer(PointCloud::Ptr InitializationPointCloud, int tim, float window, bool UseGaussianCore);
+    Initializer(PointCloud::Ptr InitializationPointCloud, int tim, float window, bool UseGaussianCore,
+                pcl::visualization::PCLVisualizer& viewer, int& port);
     bool Initialize();
     Eigen::Matrix3f R12() { return mR; }
 
@@ -38,6 +39,10 @@ private:
     void RiemannUnmapping();
     float MeanShift(float& x_mean, float& y_mean, float (*dis)(float, float, float, float, float));
     float KernelDensityEstimate(float x_mean, float y_mean, float (*dis)(float, float, float, float, float));
+    void ClearData();
+    //for pcl_viewer
+    pcl::visualization::PCLVisualizer mViewer;
+    int mPort;
 
     //pointcloud for initialization
     PointCloud::Ptr mInitializationPointCloud;
@@ -60,8 +65,6 @@ private:
     static float DisGaussianCore(float x, float y, float x_mean, float y_mean, float window);
 
     };
-
-
 
     } // namespace MANHATTAN_TRACKING
 

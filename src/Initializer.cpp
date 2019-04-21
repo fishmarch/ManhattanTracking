@@ -2,15 +2,18 @@
 
 namespace MANHATTAN_TRACKING{
 
-    Initializer::Initializer(PointCloud::Ptr InitializationPointCloud, int tim, float window, bool UseGaussianCore)
-    : mInitializationPointCloud(InitializationPointCloud),
+    Initializer::Initializer(PointCloud::Ptr InitializationPointCloud, int tim, float window,
+                             bool UseGaussianCore,
+                             pcl::visualization::PCLVisualizer& viewer, int& port)
+    : mInitializationPointCloud(InitializationPointCloud), mPort(port),
     mRiemannPointCloud(new PointCloud), mMeanShiftPoints(new PointCloud),
-    mTime(tim), mWindow(window), mUseGaussianCore(UseGaussianCore)
+    mTime(tim), mWindow(window), mUseGaussianCore(UseGaussianCore), mViewer(viewer)
     {
         RiemannMapping();
     }
 
     bool Initializer::Initialize(){
+        ClearData();
         int tim = mTime;
         default_random_engine e(time(0));
         uniform_real_distribution<float> random(-1,1);
@@ -69,6 +72,7 @@ namespace MANHATTAN_TRACKING{
         }
 
         if(mInitPoints.size()!=3){
+            cout << "init points size : " << mInitPoints.size() << endl;
             return false;
         }
 
@@ -140,7 +144,6 @@ namespace MANHATTAN_TRACKING{
 
     void Initializer::RiemannUnmapping(){
         for(auto& p : mInitPoints){
-            //cout << "point: x: " << p.x << " y: " << p.y;
             float s = p.x*p.x + p.y*p.y;
             s = sqrt(s);
             float th = tan(s);
@@ -152,10 +155,6 @@ namespace MANHATTAN_TRACKING{
             p.x = -p.x/norm;
             p.y = -p.y/norm;
             p.z = -p.z/norm;
-            //cout << " vector: " << p.x << " , " << p.y << " , " << p.z << endl;
-            //stringstream name;
-            //name << "line_" << i++;
-            //viewer.addLine(origin,p,name.str());
         }
     }
 
@@ -190,6 +189,12 @@ namespace MANHATTAN_TRACKING{
                 diff = pow(x_diff, 2) + pow(y_diff, 2);
             }
             return weights;
+    }
+
+    void Initializer::ClearData() {
+        mlam.clear();
+        mInitPoints.clear();
+        mMeanShiftPoints->points.clear();
     }
 
     float Initializer::DisUniformCore(float x, float y, float x_mean, float y_mean, float window){

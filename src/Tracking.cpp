@@ -6,9 +6,10 @@
 namespace MANHATTAN_TRACKING{
 
     Tracking::Tracking(pcl::PointCloud<pcl::PointXYZRGB>::Ptr TrackingPointCLoud,
-                       Eigen::Matrix3f LastR, float Window, bool UseGaussianCore):
-                       mTrackingPointCloud(TrackingPointCLoud),
-                       mWindow(Window), mUseGaussianCore(UseGaussianCore){
+                       Eigen::Matrix3f LastR, float Window, bool UseGaussianCore,
+                       pcl::visualization::PCLVisualizer& viewer, int& port):
+                       mTrackingPointCloud(TrackingPointCLoud), mViewer(viewer),
+                       mWindow(Window), mUseGaussianCore(UseGaussianCore), mPort(port){
         cout << "Tracking making ..." << endl;
         Eigen::Vector3f R1 = LastR.col(0);
         Eigen::Vector3f R2 = LastR.col(1);
@@ -23,6 +24,33 @@ namespace MANHATTAN_TRACKING{
         mRiemannPointCloud.push_back(cloud2);
         mRiemannPointCloud.push_back(cloud3);
         RiemannMapping();
+
+//        pcl::visualization::PointCloudColorHandlerCustom<PointT> single_color1(mRiemannPointCloud[0], 255, 0, 0);
+//        mViewer.addPointCloud(mRiemannPointCloud[0], single_color1, "rie1", mPort);
+//        pcl::visualization::PointCloudColorHandlerCustom<PointT> single_color2(mRiemannPointCloud[1], 0, 255, 0);
+//        mViewer.addPointCloud(mRiemannPointCloud[1], single_color2, "rie2", mPort);
+//        pcl::visualization::PointCloudColorHandlerCustom<PointT> single_color3(mRiemannPointCloud[2], 0, 0, 255);
+//        mViewer.addPointCloud(mRiemannPointCloud[2], single_color3, "rie3", mPort);
+
+//        PointT origin;
+//        origin.x = 0;
+//        origin.y = 0;
+//        origin.z = 0;
+//        PointT p;
+//        p.x = mPoints[0](0);
+//        p.y = mPoints[0](1);
+//        p.z = mPoints[0](2);
+//        mViewer.addLine(origin, p, 0, 255, 0, "x11", mPort);
+//        p.x = mPoints[1](0);
+//        p.y = mPoints[1](1);
+//        p.z = mPoints[1](2);
+//        mViewer.addLine(origin, p, 0, 255, 0, "y11", mPort);
+//        p.x = mPoints[2](0);
+//        p.y = mPoints[2](1);
+//        p.z = mPoints[2](2);
+//        mViewer.addLine(origin, p, 0, 255, 0, "z11", mPort);
+
+
         cout << "Tracking made" << endl;
     }
 
@@ -46,6 +74,24 @@ namespace MANHATTAN_TRACKING{
 
             mlam.push_back(lam);
         }
+
+//        PointT origin;
+//        origin.x = 0;
+//        origin.y = 0;
+//        origin.z = 0;
+//        PointT p;
+//        p.x = mPoints[0](0);
+//        p.y = mPoints[0](1);
+//        p.z = mPoints[0](2);
+//        mViewer.addLine(origin, p, 255, 0, 0, "x111", mPort);
+//        p.x = mPoints[1](0);
+//        p.y = mPoints[1](1);
+//        p.z = mPoints[1](2);
+//        mViewer.addLine(origin, p, 255, 0, 0, "y111", mPort);
+//        p.x = mPoints[2](0);
+//        p.y = mPoints[2](1);
+//        p.z = mPoints[2](2);
+//        mViewer.addLine(origin, p, 255, 0, 0, "z111", mPort);
 
         RiemannUnmapping();
         
@@ -116,10 +162,10 @@ namespace MANHATTAN_TRACKING{
             p(0) = th*p(0)/s;
             p(1) = th*p(1)/s;
             p(2) = 1;
-
-            p(0) = -p(0)/p.norm();
-            p(1) = -p(1)/p.norm();
-            p(2) = -p(2)/p.norm();
+            float norm = p.norm();
+            p(0) = -p(0)/norm;
+            p(1) = -p(1)/norm;
+            p(2) = -p(2)/norm;
         }
     }
 
