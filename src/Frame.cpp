@@ -5,10 +5,10 @@ namespace MANHATTAN_TRACKING{
     long unsigned int Frame::mLastId = 0;
     Camera Frame::mCamera = Camera();
 
-    Frame::Frame(const cv::Mat &depth, const Eigen::Matrix3f R):
-        mCloud(new PointCloud),
+    Frame::Frame(const cv::Mat &depth, const cv::Mat& rgb, const Eigen::Matrix3f R):
+        mCloud(new pcl::PointCloud<pcl::PointXYZRGB>),
         mNormalPoints(new PointCloud) {
-        GenerateCloud(depth);
+        GenerateCloud(depth, rgb);
         NormalExtract();
         mLastR = R;
 
@@ -24,25 +24,28 @@ namespace MANHATTAN_TRACKING{
         mId = ++mLastId;
     }
 
-    Frame::Frame(const cv::Mat &depth):
-        mCloud(new PointCloud),
+    Frame::Frame(const cv::Mat &depth, const cv::Mat& rgb):
+        mCloud(new pcl::PointCloud<pcl::PointXYZRGB>),
         mNormalPoints(new PointCloud),
         mRiemannPoints(new PointCloud){
-        GenerateCloud(depth);
+        GenerateCloud(depth, rgb);
         NormalExtract();
         FirstRiemannMapping();
         mId = ++mLastId;
     }
 
 
-    void Frame::GenerateCloud(const cv::Mat &depth) {
+    void Frame::GenerateCloud(const cv::Mat &depth, const cv::Mat& rgb) {
         for (int m = 0; m < depth.rows; m++){
             for (int n=0; n < depth.cols; n++){
                 ushort d = depth.ptr<ushort>(m)[n];
-                PointT p;
+                pcl::PointXYZRGB p;
                 p.z = float(d) / mCamera.factor;
                 p.x = (n - mCamera.cx) * p.z / mCamera.fx;
                 p.y = (m - mCamera.cy) * p.z / mCamera.fy;
+                p.b = rgb.ptr<uchar>(m)[n*3];
+                p.g = rgb.ptr<uchar>(m)[n*3+1];
+                p.r = rgb.ptr<uchar>(m)[n*3+2];
                 mCloud->points.push_back( p );
             }
         }
@@ -51,7 +54,7 @@ namespace MANHATTAN_TRACKING{
     }
 
     void Frame::NormalExtract() {
-        pcl::IntegralImageNormalEstimation<PointT, pcl::Normal> ne;
+        pcl::IntegralImageNormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne;
         pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>);
         ne.setNormalEstimationMethod(ne.AVERAGE_3D_GRADIENT);
         ne.setMaxDepthChangeFactor(0.02f);

@@ -30,7 +30,7 @@ save_output: 0
 #---------------------------------------------------------------------------------------------------------
 #tum_gaussian: path of output normal  PATH_TO_SEQUENCE_FOLDER ASSOCIATIONS_FILE
 #---------------------------------------------------------------------------------------------------------
-associations_file: /home/fishmarch/myData/TUM/rgbd_dataset_freiburg3_cabinet/short.txt
+associations_file: /home/fishmarch/myData/TUM/rgbd_dataset_freiburg3_cabinet/association.txt
 sequence_folder: /home/fishmarch/myData/TUM/rgbd_dataset_freiburg3_cabinet
 
 #---------------------------------------------------------------------------------------------------------

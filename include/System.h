@@ -11,10 +11,11 @@ namespace MANHATTAN_TRACKING{
     class System{
     public:
         System(char* ConfigFile);
-        void TrackFrame(const cv::Mat& depth, const cv::Mat& rgb);
+        bool TrackFrame(const cv::Mat& depth, const cv::Mat& rgb);
+        Tracking* Tracker(){return mTracker;}
     private:
-        Tracking* mTracker;
         char* mConfigFile;
+        Tracking* mTracker;
     };
 }
 

@@ -7,7 +7,7 @@
 #include <vector>
 using namespace std;
 using namespace MANHATTAN_TRACKING;
-typedef pcl::PointXYZRGB PointT;
+typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
 
 void LoadImages(const string &strAssociationFilename, vector<string> &vstrImageFilenamesRGB,
@@ -28,18 +28,99 @@ int main(int argc, char **argv) {
     vector<string> vstrImageFilenamesD;
     LoadImages(strAssociationFilename,vstrImageFilenamesRGB,vstrImageFilenamesD);
 
+    pcl::visualization::PCLVisualizer viewer("PCL Viewer");
+    int v1(0);
+    viewer.createViewPort(0.0, 0.0, 0.5, 1.0, v1);
+    int v2(0);
+    viewer.createViewPort(0.5, 0.0, 1.0, 1.0, v2);
+    viewer.setBackgroundColor(0.0, 0.0, 0.0);
+    //viewer.addCoordinateSystem(1.0);
+
     int nImages = vstrImageFilenamesRGB.size();
     cv::Mat rgb, depth;
     System SLAM(argv[1]);
 
+    PointT origin;
+    origin.x = 0;
+    origin.y = 0;
+    origin.z = 0;
+    PointT p;
+    Eigen::Vector3f Rline;
     PrintString("Start Tracking");
-    for(int ni=0; ni<nImages; ni++) {
-        rgb = cv::imread(sequenceFolder + "/" + vstrImageFilenamesRGB[ni]);
-        depth = cv::imread(sequenceFolder + "/" + vstrImageFilenamesD[ni], -1);
+    {
+        rgb = cv::imread(sequenceFolder + "/" + vstrImageFilenamesRGB[0]);
+        depth = cv::imread(sequenceFolder + "/" + vstrImageFilenamesD[0], -1);
         SLAM.TrackFrame(depth, rgb);
+
+        pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbcolor(
+                SLAM.Tracker()->CurrentFrame()->Cloud());
+        viewer.addPointCloud(SLAM.Tracker()->CurrentFrame()->Cloud(), rgbcolor, "frame", v1);
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(
+                SLAM.Tracker()->CurrentFrame()->NormalPoints(), 0, 255, 255);
+        viewer.addPointCloud(SLAM.Tracker()->CurrentFrame()->NormalPoints(), single_color, "normal", v2);
+
+        Rline = SLAM.Tracker()->R().col(0);
+        p.x = Rline(0);
+        p.y = Rline(1);
+        p.z = Rline(2);
+        viewer.addLine(origin, p, 255, 0, 0, "x1", v2);
+        Rline = SLAM.Tracker()->R().col(1);
+        p.x = Rline(0);
+        p.y = Rline(1);
+        p.z = Rline(2);
+        viewer.addLine(origin, p, 0, 255, 0, "y1", v2);
+        Rline = SLAM.Tracker()->R().col(2);
+        p.x = Rline(0);
+        p.y = Rline(1);
+        p.z = Rline(2);
+        viewer.addLine(origin, p, 0, 0, 255, "z1", v2);
+
         rgb.release();
         depth.release();
     }
+
+    for(int ni=1; ni<nImages; ni++) {
+        rgb = cv::imread(sequenceFolder + "/" + vstrImageFilenamesRGB[ni]);
+        depth = cv::imread(sequenceFolder + "/" + vstrImageFilenamesD[ni], -1);
+        if(SLAM.TrackFrame(depth, rgb)) {
+
+            viewer.removeAllPointClouds(v1);
+            viewer.removeAllPointClouds(v2);
+            viewer.removeAllShapes(v2);
+
+            pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbcolor(
+                    SLAM.Tracker()->CurrentFrame()->Cloud());
+            viewer.addPointCloud(SLAM.Tracker()->CurrentFrame()->Cloud(), rgbcolor, "frame", v1);
+            pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(
+                    SLAM.Tracker()->CurrentFrame()->NormalPoints(), 0, 255, 255);
+            viewer.addPointCloud(SLAM.Tracker()->CurrentFrame()->NormalPoints(), single_color, "normal", v2);
+
+            Rline = SLAM.Tracker()->R().col(0);
+            p.x = Rline(0);
+            p.y = Rline(1);
+            p.z = Rline(2);
+            viewer.addLine(origin, p, 255, 0, 0, "x1", v2);
+            Rline = SLAM.Tracker()->R().col(1);
+            p.x = Rline(0);
+            p.y = Rline(1);
+            p.z = Rline(2);
+            viewer.addLine(origin, p, 0, 255, 0, "y1", v2);
+            Rline = SLAM.Tracker()->R().col(2);
+            p.x = Rline(0);
+            p.y = Rline(1);
+            p.z = Rline(2);
+            viewer.addLine(origin, p, 0, 0, 255, "z1", v2);
+        }
+        rgb.release();
+        depth.release();
+        viewer.spinOnce();
+    }
+
+
+    while (!viewer.wasStopped()) {
+        viewer.spinOnce();
+    }
+
 }
 
 

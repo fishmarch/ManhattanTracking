@@ -22,7 +22,7 @@ namespace MANHATTAN_TRACKING{
         Frame::SetCameraParameter(camera_fx, camera_fy, camera_cx, camera_cy, camera_factor);
     }
 
-    void System::TrackFrame(const cv::Mat &depth, const cv::Mat &rgb) {
-        mTracker->GrabFrame(depth, rgb);
+    bool System::TrackFrame(const cv::Mat &depth, const cv::Mat &rgb) {
+        return mTracker->GrabFrame(depth, rgb);
     }
 }

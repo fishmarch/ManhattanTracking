@@ -20,11 +20,8 @@
 using namespace std;
 
 namespace MANHATTAN_TRACKING{
-    typedef pcl::PointXYZRGB PointT;
+    typedef pcl::PointXYZ PointT;
     typedef pcl::PointCloud<PointT> PointCloud;
-
-    class Tracking{
-    public:
         // Tracking states
         enum eTrackingState{
             SYSTEM_NOT_READY=-1,
@@ -33,11 +30,23 @@ namespace MANHATTAN_TRACKING{
             OK=2,
             LOST=3
         };
+        enum eManhattanState{
+            NoLack = 0,
+            LackX = 1,
+            LackY = 2,
+            LackZ = 3
+        };
+
+
+    class Tracking{
+    public:
+
         Tracking(char* ConfigFile);
-        void GrabFrame(const cv::Mat& depth, const cv::Mat& rgb);
+        bool GrabFrame(const cv::Mat& depth, const cv::Mat& rgb);
         Eigen::Matrix3f R() { return mR; }
         eTrackingState mState;
-
+        eManhattanState mManhattanState;
+        Frame* CurrentFrame(){return mCurrentFrame;}
     private:
         void RiemannMapping();
         void RiemannUnmapping();
@@ -45,7 +54,7 @@ namespace MANHATTAN_TRACKING{
         void MeanShift(int id, float& x_mean, float& y_mean, float (*dis)(float, float, float, float, float));
         float KernelDensityEstimate(int id, float x_mean, float y_mean, float (*dis)(float, float, float, float, float));
         void ClearData();
-        void Track();
+        bool Track();
 
         float mWindow;
         bool mUseGaussianCore;
@@ -55,6 +64,7 @@ namespace MANHATTAN_TRACKING{
 
         Eigen::Matrix3f mR;
         Eigen::Matrix3f mLastR;
+        Eigen::Matrix3f mFailR;
 
         Initializer* mInitializer;
         Frame* mCurrentFrame;

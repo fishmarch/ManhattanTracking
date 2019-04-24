@@ -2,11 +2,10 @@
 namespace MANHATTAN_TRACKING{
 
     Initializer::Initializer(PointCloud::Ptr InitializationPointCloud, int tim, float window,
-                             bool UseGaussianCore,
-                             pcl::visualization::PCLVisualizer& viewer, int& port)
-    : mInitializationPointCloud(InitializationPointCloud), mPort(port),
+                             bool UseGaussianCore)
+    : mInitializationPointCloud(InitializationPointCloud),
     mRiemannPointCloud(new PointCloud), mMeanShiftPoints(new PointCloud),
-    mTime(tim), mWindow(window), mUseGaussianCore(UseGaussianCore), mViewer(viewer)
+    mTime(tim), mWindow(window), mUseGaussianCore(UseGaussianCore)
     {
         RiemannMapping();
     }
@@ -22,7 +21,7 @@ namespace MANHATTAN_TRACKING{
         ClearData();
         int tim = mTime;
         default_random_engine e(time(0));
-        uniform_real_distribution<float> random(-1,1);
+        uniform_real_distribution<float> random(-1.2,1.2);
 
         //meanshift from random points, repeat tim times
         while (tim--){

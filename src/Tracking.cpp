@@ -9,26 +9,28 @@ namespace MANHATTAN_TRACKING{
         cv::FileStorage fs(mConfigFile, cv::FileStorage::READ);
         fs["window_size"] >> mWindow;
         fs["UseGaussianCore"] >> mUseGaussianCore;
+        mFailR << 1, 0, 0,
+                  0, 1, 0,
+                  0, 0, 1;
     }
 
-    void Tracking::GrabFrame(const cv::Mat &depth, const cv::Mat &rgb) {
+    bool Tracking::GrabFrame(const cv::Mat &depth, const cv::Mat &rgb) {
 
         //ClearData();
         if(mState==NO_IMAGES_YET){
-            mCurrentFrame = new Frame(depth);
+            mCurrentFrame = new Frame(depth, rgb);
             mState = NOT_INITIALIZED;
         }else{
-            mCurrentFrame = new Frame(depth, mLastR);
+            mCurrentFrame = new Frame(depth, rgb, mLastR);
             mPoints[0] = mLastR.col(0);
             mPoints[1] = mLastR.col(1);
             mPoints[2] = mLastR.col(2);
         }
-        Track();
+        return Track();
     }
 
 
-    void Tracking::Track(){
-
+    bool Tracking::Track(){
         if(mState==NOT_INITIALIZED){
             cv::FileStorage fs(mConfigFile, cv::FileStorage::READ);
             int trytim;
@@ -43,22 +45,27 @@ namespace MANHATTAN_TRACKING{
                     cout << mR << endl;
                     mLastR = mR;
                     mState = OK;
-                    return;
+                    return true;
                 }
             }
             PrintString("Initialize Failed. Try Again...");
-            return;
+            return false;
         }
 
         if(TrackRotation()){
-            Eigen::Matrix3f Rfail;
-            Rfail << 1, 0, 0,
-                     0, 1, 0,
-                     0, 0, 1;
-            if(mR != Rfail)
+            if(mR != mFailR){
                 mLastR = mR;
-            mState = OK;
+                mState = OK;
+                return true;
+            }else{
+                return false;
+            }
             //TODO: TrackTranslation();
+        }else{
+            PrintString("Tracking Failed");
+            cout << "Manhattan State: " << mManhattanState << endl;
+            cout << "Failed Frame: " << mCurrentFrame->Id() << endl;
+            return false;
         }
     }
 
@@ -66,7 +73,8 @@ namespace MANHATTAN_TRACKING{
         PrintString("Tracking Rotation...");
 
         RiemannMapping();
-        cout << mPoints[0].transpose() << endl;
+        mManhattanState = NoLack;
+
         for (int i = 0; i < 3; ++i) {
             if(mUseGaussianCore)
                 MeanShift(i, mPoints[i](0), mPoints[i](1), DisGaussianCore);
@@ -77,25 +85,49 @@ namespace MANHATTAN_TRACKING{
             float p2 = KernelDensityEstimate(i, mPoints[i](0), mPoints[i](1), DisGaussianCore);
             float lam = p2 / p1;
 
+            if(p1 < 5000){
+                if(mManhattanState != NoLack)
+                    return false;
+                switch (i){
+                    case 0:
+                        mManhattanState = LackX; break;
+                    case 1:
+                        mManhattanState = LackY; break;
+                    case 2:
+                        mManhattanState = LackZ; break;
+                }
+            }
             mlam[i] = lam;
         }
-        cout << mPoints[0].transpose() << endl;
 
         RiemannUnmapping();
-
-        cout << mPoints[0].transpose() << endl;
 
         Eigen::Vector3f v1; v1 << mPoints[0](0), mPoints[0](1), mPoints[0](2);
         Eigen::Vector3f v2; v2 << mPoints[1](0), mPoints[1](1), mPoints[1](2);
         Eigen::Vector3f v3; v3 << mPoints[2](0), mPoints[2](1), mPoints[2](2);
 
-        v1 *= mlam[0]; v2 *= mlam[1]; v3 *= mlam[2];
+        switch (mManhattanState){
+            case NoLack:
+                v1 *= mlam[0]; v2 *= mlam[1]; v3 *= mlam[2];
+                break;
+            case LackX:
+                v2 *= mlam[1]; v3 *= mlam[2];
+                v1 = v2.cross(v3);
+                break;
+            case LackY:
+                v1 *= mlam[0]; v3 *= mlam[2];
+                v2 = v3.cross(v1);
+                break;
+            case LackZ:
+                v1 *= mlam[0]; v2 *= mlam[1];
+                v3 = v1.cross(v2);
+                break;
+        }
 
         mR << v1, v2, v3;
-        cout << mR << endl;
         Eigen::JacobiSVD<Eigen::Matrix3f> svd(mR, Eigen::ComputeFullV | Eigen::ComputeFullU);
-        Eigen::Matrix3f left_singular_vectors = svd.matrixU();
-        Eigen::Matrix3f right_singular_vectors = svd.matrixV();
+        const Eigen::Matrix3f& left_singular_vectors = svd.matrixU();
+        const Eigen::Matrix3f& right_singular_vectors = svd.matrixV();
         mR = left_singular_vectors*right_singular_vectors.transpose();
         cout << mR << endl;
         return true;
@@ -145,8 +177,8 @@ namespace MANHATTAN_TRACKING{
             weights = 0;
             x_sum = 0;
             y_sum = 0;
-            for (int i = 0; i < mCurrentFrame->mRiemannPointCloud[id]->points.size(); ++i) {
-                PointT n = mCurrentFrame->mRiemannPointCloud[id]->points[i];
+            for (int i = 0; i < mCurrentFrame->RiemannPointCloud()[id]->points.size(); ++i) {
+                PointT n = mCurrentFrame->RiemannPointCloud()[id]->points[i];
                 if (isnan(n.x))
                     continue;
                 float x_dis = n.x - x_mean;
@@ -174,8 +206,8 @@ namespace MANHATTAN_TRACKING{
 
     float Tracking::KernelDensityEstimate(int id, float x_mean, float y_mean, float (*dis)(float, float, float, float, float)){
         float weights = 0;
-        for (int i = 0; i < mCurrentFrame->mRiemannPointCloud[id]->points.size(); ++i) {
-            PointT n = mCurrentFrame->mRiemannPointCloud[id]->points[i];
+        for (int i = 0; i < mCurrentFrame->RiemannPointCloud()[id]->points.size(); ++i) {
+            PointT n = mCurrentFrame->RiemannPointCloud()[id]->points[i];
             if (isnan(n.x))
                 continue;
             float weight = dis(n.x, n.y, x_mean, y_mean, mWindow);

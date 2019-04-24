@@ -27,13 +27,12 @@ using namespace std;
 
 namespace MANHATTAN_TRACKING{
 
-    typedef pcl::PointXYZRGB PointT;
+    typedef pcl::PointXYZ PointT;
     typedef pcl::PointCloud<PointT> PointCloud;
 
     class Initializer{
 public:
-    Initializer(PointCloud::Ptr InitializationPointCloud, int tim, float window, bool UseGaussianCore,
-                pcl::visualization::PCLVisualizer& viewer, int& port);
+    Initializer(PointCloud::Ptr InitializationPointCloud, int tim, float window, bool UseGaussianCore);
     Initializer(Frame* frame, int tim, float window, bool UseGaussian);
 
     bool Initialize();
@@ -45,11 +44,6 @@ private:
     void MeanShift(float& x_mean, float& y_mean, float (*dis)(float, float, float, float, float));
     float KernelDensityEstimate(float x_mean, float y_mean, float (*dis)(float, float, float, float, float));
     void ClearData();
-
-
-    //for pcl_viewer
-    pcl::visualization::PCLVisualizer mViewer;
-    int mPort;
 
     //pointcloud for initialization
     PointCloud::Ptr mInitializationPointCloud;

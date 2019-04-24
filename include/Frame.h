@@ -13,7 +13,7 @@
 using namespace std;
 
 namespace MANHATTAN_TRACKING {
-    typedef pcl::PointXYZRGB PointT;
+    typedef pcl::PointXYZ PointT;
     typedef pcl::PointCloud<PointT> PointCloud;
 
     struct Camera{
@@ -27,21 +27,25 @@ namespace MANHATTAN_TRACKING {
 
     class Frame{
     public:
-        Frame(const cv::Mat& depth, const Eigen::Matrix3f R);
-        Frame(const cv::Mat& depth); //First Frame
+        Frame(const cv::Mat& depth, const cv::Mat& rgb, const Eigen::Matrix3f R);
+        Frame(const cv::Mat& depth, const cv::Mat& rgb); //First Frame
+
+        inline long unsigned int Id();
         inline PointCloud::Ptr RiemannPoints();
+        inline pcl::PointCloud<pcl::PointXYZRGB>::Ptr Cloud();
+        inline PointCloud::Ptr NormalPoints();
         inline vector<PointCloud::Ptr>& RiemannPointCloud();
-        PointCloud::Ptr mRiemannPoints;
-        vector<PointCloud::Ptr> mRiemannPointCloud;
+
     private:
-        void GenerateCloud(const cv::Mat& depth);
+        void GenerateCloud(const cv::Mat& depth, const cv::Mat& rgb);
         void NormalExtract();
         void RiemannMapping();
         void FirstRiemannMapping();
 
-        PointCloud::Ptr mCloud;
+        PointCloud::Ptr mRiemannPoints;
+        vector<PointCloud::Ptr> mRiemannPointCloud;
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr mCloud;
         PointCloud::Ptr mNormalPoints;
-
 
         long unsigned int mId;
         Eigen::Matrix3f mLastR;
@@ -52,6 +56,18 @@ namespace MANHATTAN_TRACKING {
         static Camera mCamera;
         static void SetCameraParameter(float fx_, float fy_, float cx_, float cy_, float factor_);
     };// CLASS FRAME
+
+    unsigned long int Frame::Id() {
+        return mId;
+    }
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr Frame::Cloud(){
+        return mCloud;
+    }
+
+    PointCloud::Ptr Frame::NormalPoints(){
+        return mNormalPoints;
+    }
 
     PointCloud::Ptr Frame::RiemannPoints(){
         return mRiemannPoints;
