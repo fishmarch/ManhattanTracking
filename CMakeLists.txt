@@ -29,7 +29,10 @@ include_directories(
 
 add_library(${PROJECT_NAME} SHARED
         src/Initializer.cpp
-        src/Tracking.cpp)
+        src/Tracking.cpp
+        src/Frame.cpp
+        src/System.cpp
+        src/base.cpp)
 
 target_link_libraries(${PROJECT_NAME}
         ${OpenCV_LIBS}

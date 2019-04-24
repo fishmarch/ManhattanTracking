@@ -1,13 +1,17 @@
 #include "Initializer.h"
 #include "Tracking.h"
+#include "base.h"
+#include "System.h"
+
 #include <pcl/visualization/cloud_viewer.h>
-
+#include <vector>
 using namespace std;
-
+using namespace MANHATTAN_TRACKING;
 typedef pcl::PointXYZRGB PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
 
-using namespace MANHATTAN_TRACKING;
+void LoadImages(const string &strAssociationFilename, vector<string> &vstrImageFilenamesRGB,
+                vector<string> &vstrImageFilenamesD);
 
 int main(int argc, char **argv) {
     if (argc != 2) {
@@ -15,93 +19,52 @@ int main(int argc, char **argv) {
         return 0;
     }
     cv::FileStorage fs(argv[1], cv::FileStorage::READ);
-    string gaussian_path, gaussian_path2;
-    int trytim;
-    float window;
-    bool UseGaussianCore;
-    fs["gaussian_path"] >> gaussian_path;
-    fs["gaussian_path2"] >> gaussian_path2;
-    fs["initilize_time"] >> trytim;
-    fs["window_size"] >> window;
-    fs["UseGaussianCore"] >> UseGaussianCore;
+    string strAssociationFilename;
+    string sequenceFolder;
+    fs["associations_file"] >> strAssociationFilename;
+    fs["sequence_folder"] >> sequenceFolder;
 
-    pcl::visualization::PCLVisualizer viewer("PCL Viewer");
-    int v1(0);
-    viewer.createViewPort(0.0, 0.0, 0.5, 1.0, v1);
-    int v2(0);
-    viewer.createViewPort(0.5, 0.0, 1.0, 1.0, v2);
+    vector<string> vstrImageFilenamesRGB;
+    vector<string> vstrImageFilenamesD;
+    LoadImages(strAssociationFilename,vstrImageFilenamesRGB,vstrImageFilenamesD);
 
-    viewer.addCoordinateSystem(1.0);
-    viewer.setBackgroundColor(0.0, 0.0, 0.0);
+    int nImages = vstrImageFilenamesRGB.size();
+    cv::Mat rgb, depth;
+    System SLAM(argv[1]);
 
-    PointCloud::Ptr inputcloud(new PointCloud);
-    pcl::io::loadPCDFile(gaussian_path, *inputcloud);
-    pcl::visualization::PointCloudColorHandlerCustom<PointT> single_color(inputcloud, 0, 255, 255);
-    viewer.addPointCloud(inputcloud, single_color, "input1", v1);
+    PrintString("Start Tracking");
+    for(int ni=0; ni<nImages; ni++) {
+        rgb = cv::imread(sequenceFolder + "/" + vstrImageFilenamesRGB[ni]);
+        depth = cv::imread(sequenceFolder + "/" + vstrImageFilenamesD[ni], -1);
+        SLAM.TrackFrame(depth, rgb);
+        rgb.release();
+        depth.release();
+    }
+}
 
-    PointCloud::Ptr inputcloud2(new PointCloud);
-    pcl::io::loadPCDFile(gaussian_path2, *inputcloud2);
-    pcl::visualization::PointCloudColorHandlerCustom<PointT> single_color2(inputcloud2, 0, 255, 255);
-    viewer.addPointCloud(inputcloud2, single_color2, "input2", v2);
 
-    Initializer init(inputcloud, trytim, window, UseGaussianCore, viewer, v1);
-    PointT origin;
-    origin.x = 0;
-    origin.y = 0;
-    origin.z = 0;
-    int init_tim = 10;
-    while (init_tim--) {
-        if (init.Initialize()) {
-            cout << "Initialize successfully !" << endl;
-            cout << init.R12() << endl;
-            Eigen::Vector3f R1 = init.R12().col(0);
-            Eigen::Vector3f R2 = init.R12().col(1);
-            Eigen::Vector3f R3 = init.R12().col(2);
-            PointT p;
-            p.x = R1(0);
-            p.y = R1(1);
-            p.z = R1(2);
-            viewer.addLine(origin, p, 255, 0, 0, "x1", v1);
-            p.x = R2(0);
-            p.y = R2(1);
-            p.z = R2(2);
-            viewer.addLine(origin, p, 0, 255, 0, "y1", v1);
-            p.x = R3(0);
-            p.y = R3(1);
-            p.z = R3(2);
-            viewer.addLine(origin, p, 0, 0, 255, "z1", v1);
-            break;
+void LoadImages(const string &strAssociationFilename, vector<string> &vstrImageFilenamesRGB,
+                vector<string> &vstrImageFilenamesD)
+{
+    ifstream fAssociation;
+    fAssociation.open(strAssociationFilename.c_str());
+    while(!fAssociation.eof())
+    {
+        string s;
+        getline(fAssociation,s);
+        if(!s.empty())
+        {
+            stringstream ss;
+            ss << s;
+            double t;
+            string sRGB, sD;
+            ss >> t;
+            ss >> sRGB;
+            vstrImageFilenamesRGB.push_back(sRGB);
+            ss >> t;
+            ss >> sD;
+            vstrImageFilenamesD.push_back(sD);
+
         }
     }
-    if (init_tim == 0) {
-        cout << "initialize failed" << endl;
-        return 0;
-    }
-
-    Tracking track(inputcloud2, init.R12(), window, UseGaussianCore, viewer, v2);
-    if (track.Track()) {
-        cout << "Tracking successfully !" << endl;
-        cout << track.R12() << endl;
-        Eigen::Vector3f R1 = track.R12().col(0);
-        Eigen::Vector3f R2 = track.R12().col(1);
-        Eigen::Vector3f R3 = track.R12().col(2);
-        PointT p;
-        p.x = R1(0);
-        p.y = R1(1);
-        p.z = R1(2);
-        viewer.addLine(origin, p, 255, 0, 0, "x2", v2);
-        p.x = R2(0);
-        p.y = R2(1);
-        p.z = R2(2);
-        viewer.addLine(origin, p, 0, 255, 0, "y2", v2);
-        p.x = R3(0);
-        p.y = R3(1);
-        p.z = R3(2);
-        viewer.addLine(origin, p, 0, 0, 255, "z2", v2);
-    }
-
-    while (!viewer.wasStopped()) {
-        viewer.spinOnce();
-    }
-
 }

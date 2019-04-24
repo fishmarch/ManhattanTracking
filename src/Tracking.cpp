@@ -5,96 +5,86 @@
 
 namespace MANHATTAN_TRACKING{
 
-    Tracking::Tracking(pcl::PointCloud<pcl::PointXYZRGB>::Ptr TrackingPointCLoud,
-                       Eigen::Matrix3f LastR, float Window, bool UseGaussianCore,
-                       pcl::visualization::PCLVisualizer& viewer, int& port):
-                       mTrackingPointCloud(TrackingPointCLoud), mViewer(viewer),
-                       mWindow(Window), mUseGaussianCore(UseGaussianCore), mPort(port){
-        cout << "Tracking making ..." << endl;
-        Eigen::Vector3f R1 = LastR.col(0);
-        Eigen::Vector3f R2 = LastR.col(1);
-        Eigen::Vector3f R3 = LastR.col(2);
-        mPoints.push_back(R1);
-        mPoints.push_back(R2);
-        mPoints.push_back(R3);
-        PointCloud::Ptr cloud1(new PointCloud);
-        PointCloud::Ptr cloud2(new PointCloud);
-        PointCloud::Ptr cloud3(new PointCloud);
-        mRiemannPointCloud.push_back(cloud1);
-        mRiemannPointCloud.push_back(cloud2);
-        mRiemannPointCloud.push_back(cloud3);
-        RiemannMapping();
-
-//        pcl::visualization::PointCloudColorHandlerCustom<PointT> single_color1(mRiemannPointCloud[0], 255, 0, 0);
-//        mViewer.addPointCloud(mRiemannPointCloud[0], single_color1, "rie1", mPort);
-//        pcl::visualization::PointCloudColorHandlerCustom<PointT> single_color2(mRiemannPointCloud[1], 0, 255, 0);
-//        mViewer.addPointCloud(mRiemannPointCloud[1], single_color2, "rie2", mPort);
-//        pcl::visualization::PointCloudColorHandlerCustom<PointT> single_color3(mRiemannPointCloud[2], 0, 0, 255);
-//        mViewer.addPointCloud(mRiemannPointCloud[2], single_color3, "rie3", mPort);
-
-//        PointT origin;
-//        origin.x = 0;
-//        origin.y = 0;
-//        origin.z = 0;
-//        PointT p;
-//        p.x = mPoints[0](0);
-//        p.y = mPoints[0](1);
-//        p.z = mPoints[0](2);
-//        mViewer.addLine(origin, p, 0, 255, 0, "x11", mPort);
-//        p.x = mPoints[1](0);
-//        p.y = mPoints[1](1);
-//        p.z = mPoints[1](2);
-//        mViewer.addLine(origin, p, 0, 255, 0, "y11", mPort);
-//        p.x = mPoints[2](0);
-//        p.y = mPoints[2](1);
-//        p.z = mPoints[2](2);
-//        mViewer.addLine(origin, p, 0, 255, 0, "z11", mPort);
-
-
-        cout << "Tracking made" << endl;
+    Tracking::Tracking(char* ConfigFile): mState(NO_IMAGES_YET), mConfigFile(ConfigFile){
+        cv::FileStorage fs(mConfigFile, cv::FileStorage::READ);
+        fs["window_size"] >> mWindow;
+        fs["UseGaussianCore"] >> mUseGaussianCore;
     }
 
-    bool Tracking::Track(){
-        TrackRotation();
-        //TODO: TrackTranslation();
-        return true;
+    void Tracking::GrabFrame(const cv::Mat &depth, const cv::Mat &rgb) {
+
+        //ClearData();
+        if(mState==NO_IMAGES_YET){
+            mCurrentFrame = new Frame(depth);
+            mState = NOT_INITIALIZED;
+        }else{
+            mCurrentFrame = new Frame(depth, mLastR);
+            mPoints[0] = mLastR.col(0);
+            mPoints[1] = mLastR.col(1);
+            mPoints[2] = mLastR.col(2);
+        }
+        Track();
+    }
+
+
+    void Tracking::Track(){
+
+        if(mState==NOT_INITIALIZED){
+            cv::FileStorage fs(mConfigFile, cv::FileStorage::READ);
+            int trytim;
+            fs["initilize_time"] >> trytim;
+            mInitializer = new Initializer(mCurrentFrame, trytim, mWindow, mUseGaussianCore);
+            PrintString("Iniializing...");
+            int init_tim = 10;
+            while (init_tim--) {
+                if(mInitializer->Initialize()){
+                    PrintString("Initialize Successfully");
+                    mR = mInitializer->R();
+                    cout << mR << endl;
+                    mLastR = mR;
+                    mState = OK;
+                    return;
+                }
+            }
+            PrintString("Initialize Failed. Try Again...");
+            return;
+        }
+
+        if(TrackRotation()){
+            Eigen::Matrix3f Rfail;
+            Rfail << 1, 0, 0,
+                     0, 1, 0,
+                     0, 0, 1;
+            if(mR != Rfail)
+                mLastR = mR;
+            mState = OK;
+            //TODO: TrackTranslation();
+        }
     }
 
     bool Tracking::TrackRotation() {
-        cout << "Track Rotation..." << endl;
+        PrintString("Tracking Rotation...");
+
+        RiemannMapping();
+        cout << mPoints[0].transpose() << endl;
         for (int i = 0; i < 3; ++i) {
             if(mUseGaussianCore)
-                MeanShift(i, mPoints[i](0), mPoints[i](1),DisGaussianCore);
+                MeanShift(i, mPoints[i](0), mPoints[i](1), DisGaussianCore);
             else
-                MeanShift(i, mPoints[i](0), mPoints[i](1),DisUniformCore);
+                MeanShift(i, mPoints[i](0), mPoints[i](1), DisUniformCore);
 
-            float p1 = KernelDensityEstimate(i, mPoints[i](0), mPoints[i](0), DisUniformCore);
-            float p2 = KernelDensityEstimate(i, mPoints[i](0), mPoints[i](0), DisGaussianCore);
+            float p1 = KernelDensityEstimate(i, mPoints[i](0), mPoints[i](1), DisUniformCore);
+            float p2 = KernelDensityEstimate(i, mPoints[i](0), mPoints[i](1), DisGaussianCore);
             float lam = p2 / p1;
 
-            mlam.push_back(lam);
+            mlam[i] = lam;
         }
-
-//        PointT origin;
-//        origin.x = 0;
-//        origin.y = 0;
-//        origin.z = 0;
-//        PointT p;
-//        p.x = mPoints[0](0);
-//        p.y = mPoints[0](1);
-//        p.z = mPoints[0](2);
-//        mViewer.addLine(origin, p, 255, 0, 0, "x111", mPort);
-//        p.x = mPoints[1](0);
-//        p.y = mPoints[1](1);
-//        p.z = mPoints[1](2);
-//        mViewer.addLine(origin, p, 255, 0, 0, "y111", mPort);
-//        p.x = mPoints[2](0);
-//        p.y = mPoints[2](1);
-//        p.z = mPoints[2](2);
-//        mViewer.addLine(origin, p, 255, 0, 0, "z111", mPort);
+        cout << mPoints[0].transpose() << endl;
 
         RiemannUnmapping();
-        
+
+        cout << mPoints[0].transpose() << endl;
+
         Eigen::Vector3f v1; v1 << mPoints[0](0), mPoints[0](1), mPoints[0](2);
         Eigen::Vector3f v2; v2 << mPoints[1](0), mPoints[1](1), mPoints[1](2);
         Eigen::Vector3f v3; v3 << mPoints[2](0), mPoints[2](1), mPoints[2](2);
@@ -102,46 +92,20 @@ namespace MANHATTAN_TRACKING{
         v1 *= mlam[0]; v2 *= mlam[1]; v3 *= mlam[2];
 
         mR << v1, v2, v3;
+        cout << mR << endl;
         Eigen::JacobiSVD<Eigen::Matrix3f> svd(mR, Eigen::ComputeFullV | Eigen::ComputeFullU);
         Eigen::Matrix3f left_singular_vectors = svd.matrixU();
         Eigen::Matrix3f right_singular_vectors = svd.matrixV();
         mR = left_singular_vectors*right_singular_vectors.transpose();
-
+        cout << mR << endl;
         return true;
     }
 
-    void Tracking::RiemannMapping(){
-        cout << "Riemann mapping..." << endl;
-        for (int i = 0; i < mTrackingPointCloud->points.size(); ++i) {
-            PointT n = mTrackingPointCloud->points[i];
-            if(isnan(n.x))
-                continue;
+    void Tracking::RiemannMapping() {
+        for(int i = 0; i < 3; ++i){
+            Eigen::Vector3f& p = mPoints[i];
 
-            PointT p;
-            float lam = sqrt(n.x * n.x + n.y * n.y);
-            float theta = asin(lam);
-            p.x = theta * n.x / lam;
-            p.y = theta * n.y / lam;
-            if(n.z < 0){
-                p.x = -p.x;
-                p.y = -p.y;
-            }
-            p.z = 1;
-
-            Eigen::Vector3f vn;
-            vn << n.x, n.y, n.z;
-
-            //assign the point to respective cone
-            for (int j = 0; j < 3; ++j) {
-                float temp = mPoints[j].dot(vn);
-                if(temp > sqrt(0.5)){
-                    mRiemannPointCloud[j]->points.push_back(p);
-                    break;
-                }
-            }
-        }
-        for(auto& p:mPoints){
-            float lam = sqrt(p(0) * p(0) + p(1) * p(1));
+            float lam = sqrt(p(0)*p(0) + p(1)*p(1));
             float theta = asin(lam);
             p(0) = theta * p(0) / lam;
             p(1) = theta * p(1) / lam;
@@ -151,11 +115,11 @@ namespace MANHATTAN_TRACKING{
             }
             p(2) = 1;
         }
-
     }
 
     void Tracking::RiemannUnmapping(){
-        for(auto& p : mPoints){
+        for(int i = 0; i < 3; ++i){
+            Eigen::Vector3f& p = mPoints[i];
             float s = p(0)*p(0) + p(1)*p(1);
             s = sqrt(s);
             float th = tan(s);
@@ -169,20 +133,20 @@ namespace MANHATTAN_TRACKING{
         }
     }
 
-    float Tracking::MeanShift(int id, float& x_mean, float& y_mean, float (*dis)(float, float, float, float, float)){
+    void Tracking::MeanShift(int id, float& x_mean, float& y_mean, float (*dis)(float, float, float, float, float)){
         float x_sum = 0;
         float y_sum = 0;
         float weights = 0;
-        float x_diff = 1;
-        float y_diff = 1;
+        float x_diff = 0;
+        float y_diff = 0;
         float diff = 1;
 
         while (diff > 0.0001) {
             weights = 0;
             x_sum = 0;
             y_sum = 0;
-            for (int i = 0; i < mRiemannPointCloud[id]->points.size(); ++i) {
-                PointT n = mRiemannPointCloud[id]->points[i];
+            for (int i = 0; i < mCurrentFrame->mRiemannPointCloud[id]->points.size(); ++i) {
+                PointT n = mCurrentFrame->mRiemannPointCloud[id]->points[i];
                 if (isnan(n.x))
                     continue;
                 float x_dis = n.x - x_mean;
@@ -196,16 +160,22 @@ namespace MANHATTAN_TRACKING{
             y_diff = y_sum / weights;
             x_mean += x_diff;
             y_mean += y_diff;
-            //cout << "move  point: " << x_mean << " , " << y_mean << " num: " << num << endl;
             diff = pow(x_diff, 2) + pow(y_diff, 2);
         }
-        return weights;
     }
+
+    void Tracking::ClearData() {
+//        if(mInitializer)
+//            delete mInitializer;
+//        if(mCurrentFrame)
+//            delete mCurrentFrame;
+    }
+
 
     float Tracking::KernelDensityEstimate(int id, float x_mean, float y_mean, float (*dis)(float, float, float, float, float)){
         float weights = 0;
-        for (int i = 0; i < mRiemannPointCloud[id]->points.size(); ++i) {
-            PointT n = mRiemannPointCloud[id]->points[i];
+        for (int i = 0; i < mCurrentFrame->mRiemannPointCloud[id]->points.size(); ++i) {
+            PointT n = mCurrentFrame->mRiemannPointCloud[id]->points[i];
             if (isnan(n.x))
                 continue;
             float weight = dis(n.x, n.y, x_mean, y_mean, mWindow);
@@ -230,7 +200,6 @@ namespace MANHATTAN_TRACKING{
         float sigma = window / 3;
 
         float res = exp(-dis / (2 * sigma * sigma));
-        //res = res / (sqrt(2 * pi) * sigma);
         return res;
     }
 

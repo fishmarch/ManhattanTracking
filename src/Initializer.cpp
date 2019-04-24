@@ -1,5 +1,4 @@
 #include "Initializer.h"
-
 namespace MANHATTAN_TRACKING{
 
     Initializer::Initializer(PointCloud::Ptr InitializationPointCloud, int tim, float window,
@@ -12,12 +11,19 @@ namespace MANHATTAN_TRACKING{
         RiemannMapping();
     }
 
-    bool Initializer::Initialize(){
+    Initializer::Initializer(MANHATTAN_TRACKING::Frame *frame, int tim,
+                             float window, bool UseGaussian): mMeanShiftPoints(new PointCloud),
+                             mTime(tim), mWindow(window), mUseGaussianCore(UseGaussian){
+        mFrame = frame;
+        mRiemannPointCloud = mFrame->RiemannPoints();
+    }
+
+    bool Initializer::Initialize() {
         ClearData();
         int tim = mTime;
         default_random_engine e(time(0));
         uniform_real_distribution<float> random(-1,1);
-        
+
         //meanshift from random points, repeat tim times
         while (tim--){
             float x_mean = random(e);
@@ -31,13 +37,13 @@ namespace MANHATTAN_TRACKING{
             p.x = x_mean;
             p.y = y_mean;
             p.z = 1.1;
-            mMeanShiftPoints->points.push_back(p);    
+            mMeanShiftPoints->points.push_back(p);
         }
 
         //sort the meanshitf results by point.x
         sort(mMeanShiftPoints->points.begin(),mMeanShiftPoints->points.end(),[](PointT& a,PointT& b){return a.x < b.x; });
 
-        //try to find three centers 
+        //try to find three centers
         float last = -2;
         float sum_x = 0;
         float sum_y = 0;
@@ -63,7 +69,7 @@ namespace MANHATTAN_TRACKING{
                 sum_y += p.y;
                 last = p.x;
             }
-        }    
+        }
         if(sum_num > mTime/10){
             PointT n;
             n.x = sum_x/sum_num;
@@ -76,17 +82,17 @@ namespace MANHATTAN_TRACKING{
             return false;
         }
 
-        for(auto& p:mInitPoints){
-            float p1 = KernelDensityEstimate(p.x, p.y, DisUniformCore);
-            float p2 = KernelDensityEstimate(p.x, p.y, DisGaussianCore);
+        for(int i = 0; i < mInitPoints.size(); ++ i){
+            float p1 = KernelDensityEstimate(mInitPoints[i].x, mInitPoints[i].y, DisUniformCore);
+            float p2 = KernelDensityEstimate(mInitPoints[i].x, mInitPoints[i].y, DisGaussianCore);
             float lam = p2/p1;
             //cout << " lam : " << lam << endl;
-            mlam.push_back(lam);
+            mlam[i] = lam;
         }
 
-        
+
         RiemannUnmapping();
-        
+
         Eigen::Vector3f v1; v1 << mInitPoints[0].x, mInitPoints[0].y, mInitPoints[0].z;
         Eigen::Vector3f v2; v2 << mInitPoints[1].x, mInitPoints[1].y, mInitPoints[1].z;
         Eigen::Vector3f v3; v3 << mInitPoints[2].x, mInitPoints[2].y, mInitPoints[2].z;
@@ -107,6 +113,7 @@ namespace MANHATTAN_TRACKING{
 
         return true;
     }
+
     
     float Initializer::KernelDensityEstimate(float x_mean, float y_mean, float (*dis)(float, float, float, float, float)){
         float weights = 0;
@@ -158,7 +165,7 @@ namespace MANHATTAN_TRACKING{
         }
     }
 
-    float Initializer::MeanShift(float& x_mean, float& y_mean, float (*dis)(float, float, float, float, float)){
+    void Initializer::MeanShift(float& x_mean, float& y_mean, float (*dis)(float, float, float, float, float)){
             float x_sum = 0;
             float y_sum = 0;
             float weights = 0;
@@ -188,11 +195,10 @@ namespace MANHATTAN_TRACKING{
                 //cout << "move  point: " << x_mean << " , " << y_mean << " num: " << num << endl;
                 diff = pow(x_diff, 2) + pow(y_diff, 2);
             }
-            return weights;
     }
 
+
     void Initializer::ClearData() {
-        mlam.clear();
         mInitPoints.clear();
         mMeanShiftPoints->points.clear();
     }

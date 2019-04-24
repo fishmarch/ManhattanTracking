@@ -12,6 +12,10 @@
 #include <pcl/io/io.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/visualization/cloud_viewer.h>
+#include "Initializer.h"
+#include "Frame.h"
+#include "base.h"
+
 
 using namespace std;
 
@@ -21,39 +25,45 @@ namespace MANHATTAN_TRACKING{
 
     class Tracking{
     public:
-        Tracking(PointCloud::Ptr TrackingPointCLoud,Eigen::Matrix3f LastR, float Window, bool UseGaussianCore,
-                pcl::visualization::PCLVisualizer& viewer, int& port);
-        bool Track();
-        Eigen::Matrix3f R12() { return mR; }
+        // Tracking states
+        enum eTrackingState{
+            SYSTEM_NOT_READY=-1,
+            NO_IMAGES_YET=0,
+            NOT_INITIALIZED=1,
+            OK=2,
+            LOST=3
+        };
+        Tracking(char* ConfigFile);
+        void GrabFrame(const cv::Mat& depth, const cv::Mat& rgb);
+        Eigen::Matrix3f R() { return mR; }
+        eTrackingState mState;
+
     private:
         void RiemannMapping();
         void RiemannUnmapping();
         bool TrackRotation();
-        float MeanShift(int id, float& x_mean, float& y_mean, float (*dis)(float, float, float, float, float));
+        void MeanShift(int id, float& x_mean, float& y_mean, float (*dis)(float, float, float, float, float));
         float KernelDensityEstimate(int id, float x_mean, float y_mean, float (*dis)(float, float, float, float, float));
+        void ClearData();
+        void Track();
 
-        PointCloud::Ptr mTrackingPointCloud;
-        //pointcloud to save riemann mapping
-        vector<PointCloud::Ptr> mRiemannPointCloud;
+        float mWindow;
+        bool mUseGaussianCore;
 
-        //pointcloud of meanshift results
-        PointCloud::Ptr mMeanShiftPoints;
-
-        //for pcl_viewer
-        pcl::visualization::PCLVisualizer mViewer;
-        int mPort;
-
-        const float mWindow;
-        const bool mUseGaussianCore;
-
-        //Eigen::Matrix3f mLastR;
-        vector<Eigen::Vector3f> mPoints;
-        vector<float> mlam;
+        Eigen::Vector3f mPoints[3];
+        float mlam[3];
 
         Eigen::Matrix3f mR;
+        Eigen::Matrix3f mLastR;
+
+        Initializer* mInitializer;
+        Frame* mCurrentFrame;
+
+        char* mConfigFile;
+
         static float DisUniformCore(float x, float y, float x_mean, float y_mean, float window);
         static float DisGaussianCore(float x, float y, float x_mean, float y_mean, float window);
-    }; // CLASS Tracking
+    }; // CLASS TRACKING
 } // MANHATTAN_TRACKING
 
 #endif //MANHATTANTRACKING_TRACKING_H

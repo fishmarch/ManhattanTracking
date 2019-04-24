@@ -18,6 +18,9 @@
 #include <algorithm>
 #include <Eigen/Core>
 #include <Eigen/Dense>
+#include <memory>
+#include "Frame.h"
+
 
 using namespace std;
 #define pi 3.1415926
@@ -31,15 +34,19 @@ namespace MANHATTAN_TRACKING{
 public:
     Initializer(PointCloud::Ptr InitializationPointCloud, int tim, float window, bool UseGaussianCore,
                 pcl::visualization::PCLVisualizer& viewer, int& port);
+    Initializer(Frame* frame, int tim, float window, bool UseGaussian);
+
     bool Initialize();
-    Eigen::Matrix3f R12() { return mR; }
+    Eigen::Matrix3f R() { return mR; }
 
 private:
     void RiemannMapping();
     void RiemannUnmapping();
-    float MeanShift(float& x_mean, float& y_mean, float (*dis)(float, float, float, float, float));
+    void MeanShift(float& x_mean, float& y_mean, float (*dis)(float, float, float, float, float));
     float KernelDensityEstimate(float x_mean, float y_mean, float (*dis)(float, float, float, float, float));
     void ClearData();
+
+
     //for pcl_viewer
     pcl::visualization::PCLVisualizer mViewer;
     int mPort;
@@ -57,9 +64,11 @@ private:
     const bool mUseGaussianCore;
 
     vector<PointT> mInitPoints;
-    vector<float> mlam;
+    float mlam[3];
 
     Eigen::Matrix3f mR;
+
+    Frame* mFrame;
     
     static float DisUniformCore(float x, float y, float x_mean, float y_mean, float window);
     static float DisGaussianCore(float x, float y, float x_mean, float y_mean, float window);
