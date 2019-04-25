@@ -21,6 +21,8 @@ namespace MANHATTAN_TRACKING{
             mCurrentFrame = new Frame(depth, rgb);
             mState = NOT_INITIALIZED;
         }else{
+            delete mCurrentFrame;
+            mCurrentFrame = NULL;
             mCurrentFrame = new Frame(depth, rgb, mLastR);
             mPoints[0] = mLastR.col(0);
             mPoints[1] = mLastR.col(1);
