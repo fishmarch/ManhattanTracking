@@ -5,6 +5,7 @@
 
 #include <pcl/visualization/cloud_viewer.h>
 #include <vector>
+#include <ctime>
 using namespace std;
 using namespace MANHATTAN_TRACKING;
 typedef pcl::PointXYZ PointT;
@@ -45,12 +46,15 @@ int main(int argc, char **argv) {
     origin.y = 0;
     origin.z = 0;
     PointT p;
+    PointT q;
     Eigen::Vector3f Rline;
     PrintString("Start Tracking");
     {
         rgb = cv::imread(sequenceFolder + "/" + vstrImageFilenamesRGB[0]);
         depth = cv::imread(sequenceFolder + "/" + vstrImageFilenamesD[0], -1);
+        clock_t time1 = clock();
         SLAM.TrackFrame(depth, rgb);
+        cout<< "Time of  Initialization : " << 1000*(clock() - time1)/(double)CLOCKS_PER_SEC << "ms" << endl;
 
         pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbcolor(
                 SLAM.Tracker()->CurrentFrame()->Cloud());
@@ -60,20 +64,20 @@ int main(int argc, char **argv) {
         viewer.addPointCloud(SLAM.Tracker()->CurrentFrame()->NormalPoints(), single_color, "normal", v2);
 
         Rline = SLAM.Tracker()->R().col(0);
-        p.x = Rline(0);
-        p.y = Rline(1);
-        p.z = Rline(2);
-        viewer.addLine(origin, p, 255, 0, 0, "x1", v2);
+        p.x = Rline(0); q.x = -p.x;
+        p.y = Rline(1); q.y = -p.y;
+        p.z = Rline(2); q.z = -p.z;
+        viewer.addLine(q, p, 255, 0, 0, "x1", v2);
         Rline = SLAM.Tracker()->R().col(1);
-        p.x = Rline(0);
-        p.y = Rline(1);
-        p.z = Rline(2);
-        viewer.addLine(origin, p, 0, 255, 0, "y1", v2);
+        p.x = Rline(0); q.x = -p.x;
+        p.y = Rline(1); q.y = -p.y;
+        p.z = Rline(2); q.z = -p.z;
+        viewer.addLine(q, p, 0, 255, 0, "y1", v2);
         Rline = SLAM.Tracker()->R().col(2);
-        p.x = Rline(0);
-        p.y = Rline(1);
-        p.z = Rline(2);
-        viewer.addLine(origin, p, 0, 0, 255, "z1", v2);
+        p.x = Rline(0); q.x = -p.x;
+        p.y = Rline(1); q.y = -p.y;
+        p.z = Rline(2); q.z = -p.z;
+        viewer.addLine(q, p, 0, 0, 255, "z1", v2);
 
         rgb.release();
         depth.release();
@@ -96,20 +100,20 @@ int main(int argc, char **argv) {
             viewer.addPointCloud(SLAM.Tracker()->CurrentFrame()->NormalPoints(), single_color, "normal", v2);
 
             Rline = SLAM.Tracker()->R().col(0);
-            p.x = Rline(0);
-            p.y = Rline(1);
-            p.z = Rline(2);
-            viewer.addLine(origin, p, 255, 0, 0, "x1", v2);
+            p.x = Rline(0); q.x = -p.x;
+            p.y = Rline(1); q.y = -p.y;
+            p.z = Rline(2); q.z = -p.z;
+            viewer.addLine(q, p, 255, 0, 0, "x1", v2);
             Rline = SLAM.Tracker()->R().col(1);
-            p.x = Rline(0);
-            p.y = Rline(1);
-            p.z = Rline(2);
-            viewer.addLine(origin, p, 0, 255, 0, "y1", v2);
+            p.x = Rline(0); q.x = -p.x;
+            p.y = Rline(1); q.y = -p.y;
+            p.z = Rline(2); q.z = -p.z;
+            viewer.addLine(q, p, 0, 255, 0, "y1", v2);
             Rline = SLAM.Tracker()->R().col(2);
-            p.x = Rline(0);
-            p.y = Rline(1);
-            p.z = Rline(2);
-            viewer.addLine(origin, p, 0, 0, 255, "z1", v2);
+            p.x = Rline(0); q.x = -p.x;
+            p.y = Rline(1); q.y = -p.y;
+            p.z = Rline(2); q.z = -p.z;
+            viewer.addLine(q, p, 0, 0, 255, "z1", v2);
         }
         rgb.release();
         depth.release();

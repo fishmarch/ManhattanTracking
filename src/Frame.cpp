@@ -118,7 +118,7 @@ namespace MANHATTAN_TRACKING{
             for (int j = 0; j < 3; ++j) {
                 Eigen::Vector3f vm = mLastR.col(j);
                 float temp = vm.dot(vn);
-                if(temp > sqrt(0.5)){
+                if(temp*temp > 0.5){
                     mRiemannPointCloud[j]->points.push_back(p);
                     break;
                 }
