@@ -111,20 +111,35 @@ namespace MANHATTAN_TRACKING{
         switch (mManhattanState){
             case NoLack:
                 v1 *= mlam[0]; v2 *= mlam[1]; v3 *= mlam[2];
+                cout << mCurrentFrame->Id() << " : " << "No Lack" << endl;
                 break;
             case LackX:
                 v2 *= mlam[1]; v3 *= mlam[2];
                 v1 = v2.cross(v3);
+                cout << mCurrentFrame->Id() << " : " << "LackX" << endl;
                 break;
             case LackY:
                 v1 *= mlam[0]; v3 *= mlam[2];
                 v2 = v3.cross(v1);
+                cout << mCurrentFrame->Id() << " : " << "LackY" << endl;
                 break;
             case LackZ:
                 v1 *= mlam[0]; v2 *= mlam[1];
                 v3 = v1.cross(v2);
+                cout << mCurrentFrame->Id() << " : " << "LackZ" << endl;
                 break;
         }
+
+        Eigen::Vector3f lastR;
+        lastR = mLastR.col(0);
+        if(v1.dot(lastR) < 0)
+            v1 = -v1;
+        lastR = mLastR.col(1);
+        if(v2.dot(lastR) < 0)
+            v2 = -v2;
+        lastR = mLastR.col(2);
+        if(v3.dot(lastR) < 0)
+            v3 = -v3;
 
         mR << v1, v2, v3;
         Eigen::JacobiSVD<Eigen::Matrix3f> svd(mR, Eigen::ComputeFullV | Eigen::ComputeFullU);
@@ -154,7 +169,7 @@ namespace MANHATTAN_TRACKING{
     void Tracking::RiemannUnmapping(){
         for(int i = 0; i < 3; ++i){
             Eigen::Vector3f& p = mPoints[i];
-            float s = p(0)*p(0) + p(1)*p(1);
+            float s = sqrt(p(0)*p(0) + p(1)*p(1));
             s = sqrt(s);
             float th = tan(s);
             p(0) = th*p(0)/s;

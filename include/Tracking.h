@@ -68,6 +68,7 @@ namespace MANHATTAN_TRACKING{
 
         Initializer* mInitializer;
         Frame* mCurrentFrame;
+        Frame* mLastFrame;
 
         char* mConfigFile;
 

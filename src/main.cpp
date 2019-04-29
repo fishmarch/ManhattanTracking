@@ -6,13 +6,15 @@
 #include <pcl/visualization/cloud_viewer.h>
 #include <vector>
 #include <ctime>
+#include <iomanip>
+#include <fstream>
 using namespace std;
 using namespace MANHATTAN_TRACKING;
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
 
 void LoadImages(const string &strAssociationFilename, vector<string> &vstrImageFilenamesRGB,
-                vector<string> &vstrImageFilenamesD);
+                vector<string> &vstrImageFilenamesD, vector<double> &vstrImageFilenamesTime);
 
 int main(int argc, char **argv) {
     if (argc != 2) {
@@ -22,12 +24,17 @@ int main(int argc, char **argv) {
     cv::FileStorage fs(argv[1], cv::FileStorage::READ);
     string strAssociationFilename;
     string sequenceFolder;
+    string resultPath;
+
     fs["associations_file"] >> strAssociationFilename;
     fs["sequence_folder"] >> sequenceFolder;
+    fs["result_path"] >> resultPath;
 
     vector<string> vstrImageFilenamesRGB;
     vector<string> vstrImageFilenamesD;
-    LoadImages(strAssociationFilename,vstrImageFilenamesRGB,vstrImageFilenamesD);
+    vector<double> vstrImageFilenamesTime;
+
+    LoadImages(strAssociationFilename,vstrImageFilenamesRGB,vstrImageFilenamesD,vstrImageFilenamesTime);
 
     pcl::visualization::PCLVisualizer viewer("PCL Viewer");
     int v1(0);
@@ -49,6 +56,14 @@ int main(int argc, char **argv) {
     PointT q;
     Eigen::Vector3f Rline;
     PrintString("Start Tracking");
+
+    ofstream resultFile;
+    resultFile.open(resultPath);
+
+    Eigen::Quaternionf rotation;
+    Eigen::Quaternionf world(0.2239, -0.4871, 0.7673, -0.3519);
+
+
     {
         rgb = cv::imread(sequenceFolder + "/" + vstrImageFilenamesRGB[0]);
         depth = cv::imread(sequenceFolder + "/" + vstrImageFilenamesD[0], -1);
@@ -79,6 +94,12 @@ int main(int argc, char **argv) {
         p.z = Rline(2); q.z = -p.z;
         viewer.addLine(q, p, 0, 0, 255, "z1", v2);
 
+        rotation = SLAM.Tracker()->R();
+        resultFile << fixed << vstrImageFilenamesTime[0] << " " << 0 << " " << 0 << " " << 0 << " "
+        //<< rotation.x() << " " << rotation.y() << " " << rotation.z() << " " << rotation.w() << endl;
+        << world.x() << " " << world.y() << " " << world.z() << " " << world.w() << endl;
+
+        world = world * rotation;
         rgb.release();
         depth.release();
     }
@@ -100,26 +121,32 @@ int main(int argc, char **argv) {
             viewer.addPointCloud(SLAM.Tracker()->CurrentFrame()->NormalPoints(), single_color, "normal", v2);
 
             Rline = SLAM.Tracker()->R().col(0);
-            p.x = Rline(0); q.x = -p.x;
-            p.y = Rline(1); q.y = -p.y;
-            p.z = Rline(2); q.z = -p.z;
-            viewer.addLine(q, p, 255, 0, 0, "x1", v2);
+            p.x = 1.5*Rline(0); q.x = -p.x;
+            p.y = 1.5*Rline(1); q.y = -p.y;
+            p.z = 1.5*Rline(2); q.z = -p.z;
+            viewer.addLine(origin, p, 255, 0, 0, "x1", v2);
             Rline = SLAM.Tracker()->R().col(1);
-            p.x = Rline(0); q.x = -p.x;
-            p.y = Rline(1); q.y = -p.y;
-            p.z = Rline(2); q.z = -p.z;
-            viewer.addLine(q, p, 0, 255, 0, "y1", v2);
+            p.x = 1.5*Rline(0); q.x = -p.x;
+            p.y = 1.5*Rline(1); q.y = -p.y;
+            p.z = 1.5*Rline(2); q.z = -p.z;
+            viewer.addLine(origin, p, 0, 255, 0, "y1", v2);
             Rline = SLAM.Tracker()->R().col(2);
-            p.x = Rline(0); q.x = -p.x;
-            p.y = Rline(1); q.y = -p.y;
-            p.z = Rline(2); q.z = -p.z;
-            viewer.addLine(q, p, 0, 0, 255, "z1", v2);
+            p.x = 1.5*Rline(0); q.x = -p.x;
+            p.y = 1.5*Rline(1); q.y = -p.y;
+            p.z = 1.5*Rline(2); q.z = -p.z;
+            viewer.addLine(origin, p, 0, 0, 255, "z1", v2);
+            rotation = SLAM.Tracker()->R();
+            rotation = world * rotation.conjugate();
+
+            resultFile << fixed << vstrImageFilenamesTime[ni] << " " << 0 << " " << 0 << " " << 0 << " "
+                       << rotation.x() << " " << rotation.y() << " " << rotation.z() << " " << rotation.w() << endl;
         }
         rgb.release();
         depth.release();
         viewer.spinOnce();
     }
 
+    resultFile.close();
 
     while (!viewer.wasStopped()) {
         viewer.spinOnce();
@@ -129,7 +156,7 @@ int main(int argc, char **argv) {
 
 
 void LoadImages(const string &strAssociationFilename, vector<string> &vstrImageFilenamesRGB,
-                vector<string> &vstrImageFilenamesD)
+                vector<string> &vstrImageFilenamesD, vector<double> &vstrImageFilenamesTime)
 {
     ifstream fAssociation;
     fAssociation.open(strAssociationFilename.c_str());
@@ -147,6 +174,7 @@ void LoadImages(const string &strAssociationFilename, vector<string> &vstrImageF
             ss >> sRGB;
             vstrImageFilenamesRGB.push_back(sRGB);
             ss >> t;
+            vstrImageFilenamesTime.push_back(t);
             ss >> sD;
             vstrImageFilenamesD.push_back(sD);
 

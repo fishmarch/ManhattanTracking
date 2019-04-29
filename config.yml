@@ -9,6 +9,7 @@ rgb_path: /home/fishmarch/myProject/ManhattanTracking/data/tum_fine_rgb.png
 #--------------------------------------------------------------------------------------------------------- 
 depth_path: /home/fishmarch/myProject/ManhattanTracking/data/tum_fine_depth.png
 
+result_path: /home/fishmarch/myProject/ManhattanTracking/pose.txt
 #--------------------------------------------------------------------------------------------------------- 
 #pointcloud_generate: path of output point cloud
 #normal_estimation: path of input point cloud
